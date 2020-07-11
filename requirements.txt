@@ -1,6 +1,6 @@
-slackclient=1.1.0
+slackclient<=1.1.0
 numpy
-tabula
+tabula-py
 requests
 BeautifulSoup4
 urllib3

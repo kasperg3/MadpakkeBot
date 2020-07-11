@@ -1,4 +1,4 @@
-slack_token = "xoxb-1235105286354-1259896887232-cFor1IDohePO1uQKn1Y45t50"
+slack_token = ""
 import os
 import time
 import re

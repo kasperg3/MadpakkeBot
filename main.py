@@ -1,25 +1,34 @@
+import logging as log
 import re
 # Setup slack client
 import shutil
 import time
+from enum import Enum
+from io import BytesIO
 
 # For extracting information from pdf
 import numpy
-import tabula
-
-# Slack bot
-from slack import WebClient as SlackClient, RTMClient
-import logging as log
 # aquiring pdf from webpage
 import requests
-from bs4 import BeautifulSoup
+import schedule as schedule
+import tabula
 import urllib3
-from io import BytesIO
 from PyPDF4 import PdfFileWriter, PdfFileReader
-import time
+from bs4 import BeautifulSoup
+# Slack bot
+from slackclient import SlackClient
 
+# Constants
 NEXT_MENU = "next_menu.pdf"
 CURRENT_MENU = "current_menu.pdf"
+
+
+class Days(Enum):
+    MANDAG = 'mandag'
+    TIRSDAG = 'tirsdag'
+    ONSDAG = 'onsdag'
+    TORSDAG = 'torsdag'
+    FREDAG = 'fredag'
 
 
 class FoodBot:
@@ -30,28 +39,25 @@ class FoodBot:
         self.RTM_READ_DELAY = 1  # 1 second delay between reading from RTM
         self.HELP_COMMAND = "help"
         self.CHANNEL = "#random"
-        self.MANDAG = "mandag"
-        self.TIRSDAG = "tirsdag"
-        self.ONSDAG = "onsdag"
-        self.TORSDAG = "torsdag"
-        self.FREDAG = "fredag"
         self.UGE = "uge"
         self.FLODEKARTOFLER = "flødekartofler"
-
         self.MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
 
-        # Initializes the menus, both menus has to be present when starting!
-        self.current_menu = self.get_menu_as_dict(CURRENT_MENU)
-        self.next_menu = self.get_menu_as_dict(NEXT_MENU)
+        # Initializes the menus, both menus has to be present when running the bot!
+        try:
+            self.current_menu = self.get_menu_as_dict(CURRENT_MENU)
+            self.next_menu = self.get_menu_as_dict(NEXT_MENU)
+        except:
+            log.log(log.CRITICAL, "Menues are not located in root of directory! Shutting down...")
+            exit()
 
         try:
             if self.slack_client.rtm_connect(with_team_state=False):
                 print("Bot connected and running!")
                 # Read bot's user ID by calling Web API method `auth.test`
-                starterbot_id = self.slack_client.api_call("auth.test")["user_id"]
+                self.starterbot_id = self.slack_client.api_call("auth.test")["user_id"]
             else:
-                print("Connection failed. Exception traceback printed above.")
-
+                print("Connection failed.")
         except:
             log.log(log.CRITICAL, "Not able to connect to slack client! Shutting down...")
             exit()
@@ -78,44 +84,68 @@ class FoodBot:
         # the first group contains the username, the second group contains the remaining message
         return (matches.group(1), matches.group(2).strip()) if matches else (None, None)
 
-    def post_message(self, message):
-        self.slack_client.chat_postMessage(channel=self.CHANNEL, text=message)
+    def post_message(self, message, channel):
+        # Sends the response back to the channel
+        self.slack_client.api_call(
+            "chat.postMessage",
+            channel=channel,
+            text=message
+        )
 
-    def handle_command(self, **payload):
+    def get_next_menu(self, day):
+        return self.next_menu[day.value].__str__()
+
+    def get_current_menu(self, day):
+        return self.current_menu[day.value].__str__()
+
+    def is_command_day(self, command, day):
+        return command.lower().startswith(day.value)
+
+    def handle_command(self, command, channel):
         """
             Executes bot command if the command is known
         """
-        data = payload['data']
-        web_client = payload['web_client']
-        rtm_client = payload['rtm_client']
-
         # Default response is help text for the user
         default_response = "Not sure what you mean. Try *{}*.".format(self.HELP_COMMAND)
-        response = default_response
-        command = ""
-        if 'text' in data and 'Hello' in data.get('text', command):
-            channel_id = data['channel']
-            thread_ts = data['ts']
-            user = data['user']
-            # This is where you start to implement more commands!
-            if command.startswith(self.HELP_COMMAND):
-                response = "Command syntax: @Mention command \n Available commands: \n\t help \n\tmandag \n\ttirsdag \n\tonsdag \n\ttorsdag \n\tfredag"
-            elif command.startswith(self.MANDAG):
-                print(self.current_menu["mandag"])
-            elif command.startswith(self.TIRSDAG):
-                pass
-            elif command.startswith(self.ONSDAG):
-                pass
-            elif command.startswith(self.TORSDAG):
-                pass
-            elif command.startswith(self.FREDAG):
-                pass
-            elif command.startswith(self.UGE):
-                pass
-            elif command.startswith(self.FLODEKARTOFLER):
-                pass
-            # Sends the response back to the channel
-            self.post_message(response)
+        response = ""
+
+        # This is where you start to implement more commands!
+        if command.startswith(self.HELP_COMMAND):
+            response = "Command syntax: @Mention command \n Available commands: \n\t\thelp \n\t\tmandag \n\t\ttirsdag \n\t\tonsdag \n\t\ttorsdag \n\t\tfredag"
+        elif command.startswith(self.UGE):
+            for day in Days:
+                response += "\n\n*" + day.value.upper() + "*\n"
+                response += self.get_current_menu(day)
+        elif command.startswith(self.FLODEKARTOFLER.__str__()):
+            day_this_week, day_next_week = self.is_flodekartofler()
+            if day_this_week:
+                response += "DER ER FLØDEKARTOFLER " + day_this_week + " I DENNE UGE! :drooling_face: \n"
+            if day_next_week:
+                response += "DER ER FLØDEKARTOFLER " + day_this_week + " I NÆSTE UGE! :drooling_face: \n"
+            if day_next_week == None and day_this_week == None:
+                response = "Der er ingen flødekartofler i denne eller næste uge :sob:"
+        else:
+            for day in Days:
+                if self.is_command_day(command, day):
+                    response = "*" + day.value.upper() + "*" + "\n" + self.get_current_menu(day)
+
+        if not response:
+            response = default_response
+        # Sends the response back to the channel
+        self.post_message(message=response, channel=channel)
+
+    def is_flodekartofler(self):
+        """
+        :rtype: day_this_week, day_next_week if no flødekartofler return None, None
+        """
+        day_this_week = None
+        day_next_week = None
+        for day in Days:
+            if self.get_current_menu(day).find("flødekartofler") == 0:
+                day_this_week = day.value
+            if self.get_current_menu(day).find("flødekartofler") == 0:
+                day_next_week = day.value
+        return day_this_week, day_next_week
 
     @staticmethod
     def get_pdf_menu_url():
@@ -149,12 +179,15 @@ class FoodBot:
 
         # remove carriage return and Add line shifts
         for i in range(array.__len__()):
-            array[i] = numpy.core.defchararray.replace(array[i], "\r", "\n\t")
-            array[i] = numpy.core.defchararray.replace(array[i], "\tKOLDT", "\KOLDT")
-            array[i] = numpy.core.defchararray.replace(array[i], "\tVARMT", "VARMT")
-            array[i] = numpy.core.defchararray.replace(array[i], "\tFROKOSTSALAT", "FROKOSTSALAT")
-            array[i] = numpy.core.defchararray.replace(array[i], "\tRIG SALAT", "RIG SALAT")
-            array[i] = numpy.core.defchararray.replace(array[i], "\tBRØD", "BRØD")
+            array[i] = numpy.core.defchararray.replace(array[i], "\r", "\n\t\t")
+            array[i] = numpy.core.defchararray.replace(array[i], "KOLDT", "\t_KOLDT_")
+            array[i] = numpy.core.defchararray.replace(array[i], "\tVARMT", "_VARMT_")
+            array[i] = numpy.core.defchararray.replace(array[i], "\tVARMT/LUNT", "_VARMT/LUNT_")
+            array[i] = numpy.core.defchararray.replace(array[i], "\tFROKOSTSALAT", "_FROKOSTSALAT_")
+            array[i] = numpy.core.defchararray.replace(array[i], "\tRIG SALAT", "_RIG SALAT_")
+            array[i] = numpy.core.defchararray.replace(array[i], "\tDET SØDE", "_DET SØDE_")
+            array[i] = numpy.core.defchararray.replace(array[i], "\tOST", "_OST_")
+            array[i] = numpy.core.defchararray.replace(array[i], "\tBRØD", "_BRØD_")
 
         days = ["mandag", "tirsdag", "onsdag", "torsdag", "fredag"]
         menu = dict(zip(days, array))
@@ -163,7 +196,6 @@ class FoodBot:
     @staticmethod
     def replace_file(src, dst):
         shutil.move(src=src, dst=dst)
-
 
     def update_menus(self):
         # Delete and rename the old menu
@@ -183,11 +215,11 @@ if __name__ == "__main__":
     auth_token = ""
     bot = FoodBot(auth_token=auth_token)
     # Schedule update of menus every friday at 14:00 TODO
-    #schedule.every().day.friday.at("14:00").do(bot.update_menus)
 
+    # MAIN LOOP
     while True:
+        schedule.every().day.friday.at("14:00").do(bot.update_menus)
         command, channel = bot.parse_bot_commands(bot.slack_client.rtm_read())
         if command:
             bot.handle_command(command, channel)
         time.sleep(bot.RTM_READ_DELAY)
-
