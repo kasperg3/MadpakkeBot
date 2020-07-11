@@ -1,0 +1,7 @@
+slackclient=1.1.0
+numpy
+tabula
+requests
+BeautifulSoup4
+urllib3
+PyPDF4
