@@ -225,7 +225,10 @@ class FoodBot:
         # If the day is not a weekend (-1 to make is match calendar days 0==monday...)
         current_weekday = datetime.today().isoweekday() - 1
         if current_weekday < 5:
+            print("Posting daily menu...")
             self.handle_command(calendar.day_name[current_weekday], self.DEFAULT_CHANNEL)
+        else:
+            print("Not posting daily menu, it's weekend ma doods!")
 
 if __name__ == "__main__":
     # Setup argument parser
