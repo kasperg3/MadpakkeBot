@@ -120,7 +120,7 @@ class FoodBot:
 
         # This is where you start to implement more commands!
         if command.startswith(self.HELP_COMMAND):
-            response = "Command syntax: @Mention command \n Available commands: \n\t\thelp \n\t\tmandag \n\t\ttirsdag \n\t\tonsdag \n\t\ttorsdag \n\t\tfredag \n\t\tflødekartofler"
+            response = "Command syntax: @Mention command \n Available commands: \n\t\thelp \n\t\tmandag \n\t\ttirsdag \n\t\tonsdag \n\t\ttorsdag \n\t\tfredag \n\t\tuge \n\t\tflødekartofler"
         elif command.startswith(self.UGE):
             for day in Days:
                 response += "\n\n*" + day.value.upper() + "*\n"
