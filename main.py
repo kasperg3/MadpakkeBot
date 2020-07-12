@@ -1,5 +1,7 @@
+import argparse
 import logging as log
 import re
+
 # Setup slack client
 import shutil
 import time
@@ -18,6 +20,12 @@ from bs4 import BeautifulSoup
 # Slack bot
 from slackclient import SlackClient
 
+# scheduling and date handling
+import calendar
+from datetime import datetime
+import locale
+
+locale.setlocale(locale.LC_TIME, 'da_DK.UTF-8')
 # Constants
 NEXT_MENU = "next_menu.pdf"
 CURRENT_MENU = "current_menu.pdf"
@@ -40,8 +48,9 @@ class FoodBot:
         self.HELP_COMMAND = "help"
         self.CHANNEL = "#random"
         self.UGE = "uge"
-        self.FLODEKARTOFLER = "flødekartofler"
+        self.FLODEKARTOFLER = "flødebagte kartofler"
         self.MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
+        self.DEFAULT_CHANNEL = "#random"
 
         # Initializes the menus, both menus has to be present when running the bot!
         try:
@@ -199,6 +208,7 @@ class FoodBot:
 
     def update_menus(self):
         # Delete and rename the old menu
+        print("Updating the menus...")
         self.replace_file(NEXT_MENU, CURRENT_MENU)
 
         # download the new menu
@@ -206,19 +216,37 @@ class FoodBot:
         bot.download_file(url, NEXT_MENU)
         menu = self.get_menu_as_dict(NEXT_MENU)
 
+        # Update the class variables
         self.current_menu = self.next_menu
         self.next_menu = menu
+        print("Finished updating menus...")
 
+    def daily_menu_post(self):
+        # If the day is not a weekend (-1 to make is match calendar days 0==monday...)
+        current_weekday = datetime.today().isoweekday() - 1
+        if current_weekday < 5:
+            self.handle_command(calendar.day_name[current_weekday], self.DEFAULT_CHANNEL)
 
 if __name__ == "__main__":
-    # TODO Replace the authtoken with an env variable
-    auth_token = ""
+    # Setup argument parser
+    parser = argparse.ArgumentParser(description='Starts a slack that pulls menu information from a url')
+    parser.add_argument('--token', metavar='token', type=str, nargs='+', help='The OAuth bot token for a classic slack app')
+    args = parser.parse_args()
+    auth_token = args.token[0]
+
+    # Create the bot
     bot = FoodBot(auth_token=auth_token)
-    # Schedule update of menus every friday at 14:00 TODO
+    bot.daily_menu_post()
+    # Schedules
+    schedule.every().day.friday.at("23:00").do(bot.update_menus)    # update of the menus every friday night
+    schedule.every().day.at("11:00").do(bot.daily_menu_post)        # post every day at 11
 
     # MAIN LOOP
     while True:
-        schedule.every().day.friday.at("14:00").do(bot.update_menus)
+        # run if any pending scheduled jobs
+        schedule.run_pending()
+
+        # fetch messages
         command, channel = bot.parse_bot_commands(bot.slack_client.rtm_read())
         if command:
             bot.handle_command(command, channel)
