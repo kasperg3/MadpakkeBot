@@ -48,7 +48,7 @@ class FoodBot:
         self.HELP_COMMAND = "help"
         self.CHANNEL = "#random"
         self.UGE = "uge"
-        self.FLODEKARTOFLER = "flødebagte kartofler"
+        self.FLODEKARTOFLER = "flødekartofler"
         self.MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
         self.DEFAULT_CHANNEL = "#random"
 
@@ -120,7 +120,7 @@ class FoodBot:
 
         # This is where you start to implement more commands!
         if command.startswith(self.HELP_COMMAND):
-            response = "Command syntax: @Mention command \n Available commands: \n\t\thelp \n\t\tmandag \n\t\ttirsdag \n\t\tonsdag \n\t\ttorsdag \n\t\tfredag"
+            response = "Command syntax: @Mention command \n Available commands: \n\t\thelp \n\t\tmandag \n\t\ttirsdag \n\t\tonsdag \n\t\ttorsdag \n\t\tfredag \n\t\tflødekartofler"
         elif command.startswith(self.UGE):
             for day in Days:
                 response += "\n\n*" + day.value.upper() + "*\n"
@@ -128,9 +128,9 @@ class FoodBot:
         elif command.startswith(self.FLODEKARTOFLER.__str__()):
             day_this_week, day_next_week = self.is_flodekartofler()
             if day_this_week:
-                response += "DER ER FLØDEKARTOFLER " + day_this_week + " I DENNE UGE! :drooling_face: \n"
+                response += "DER ER FLØDEKARTOFLER " + "*" + day_this_week.upper() + "*" + " I DENNE UGE! :drooling_face: \n"
             if day_next_week:
-                response += "DER ER FLØDEKARTOFLER " + day_this_week + " I NÆSTE UGE! :drooling_face: \n"
+                response += "DER ER FLØDEKARTOFLER " + "*" + day_next_week.upper() + "*" + " I NÆSTE UGE! :drooling_face: \n"
             if day_next_week == None and day_this_week == None:
                 response = "Der er ingen flødekartofler i denne eller næste uge :sob:"
         else:
@@ -150,9 +150,9 @@ class FoodBot:
         day_this_week = None
         day_next_week = None
         for day in Days:
-            if self.get_current_menu(day).find("flødekartofler") == 0:
+            if self.get_current_menu(day).find("flødebagte kartofler") != -1:
                 day_this_week = day.value
-            if self.get_current_menu(day).find("flødekartofler") == 0:
+            if self.get_next_menu(day).find("flødebagte kartofler") != -1:
                 day_next_week = day.value
         return day_this_week, day_next_week
 
