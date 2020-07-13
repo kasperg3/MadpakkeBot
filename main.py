@@ -239,7 +239,6 @@ if __name__ == "__main__":
 
     # Create the bot
     bot = FoodBot(auth_token=auth_token)
-    bot.daily_menu_post()
     # Schedules
     schedule.every().day.friday.at("23:00").do(bot.update_menus)    # update of the menus every friday night
     schedule.every().day.at("11:00").do(bot.daily_menu_post)        # post every day at 11
