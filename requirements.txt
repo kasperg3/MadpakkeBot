@@ -1,4 +1,4 @@
-slackclient<=1.1.0
+slackclient<=2.0.0b1
 numpy
 tabula-py
 requests
@@ -7,3 +7,4 @@ urllib3
 PyPDF4
 enum34
 schedule
+websocket-client

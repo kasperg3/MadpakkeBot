@@ -44,6 +44,7 @@ class Days(Enum):
 class FoodBot:
     def __init__(self, auth_token):
         # instantiate Slack client
+        print("Starting slack client...")
         self.slack_client = SlackClient(auth_token)
         # constants
         self.RTM_READ_DELAY = 1  # 1 second delay between reading from RTM
@@ -55,23 +56,19 @@ class FoodBot:
         self.DEFAULT_CHANNEL = "#random"
 
         # Initializes the menus, both menus has to be present when running the bot!
-        try:
-            self.current_menu = self.get_menu_as_dict(CURRENT_MENU)
-            self.next_menu = self.get_menu_as_dict(NEXT_MENU)
-        except:
-            log.log(log.CRITICAL, "Menues are not located in root of directory: " + os.getcwd() + CURRENT_MENU + "! Shutting down...")
-            exit()
+        print("Loading local menu files...")
+        self.current_menu = self.get_menu_as_dict(CURRENT_MENU)
+        self.next_menu = self.get_menu_as_dict(NEXT_MENU)
 
-        try:
-            if self.slack_client.rtm_connect(with_team_state=False):
-                print("Bot connected and running!")
-                # Read bot's user ID by calling Web API method `auth.test`
-                self.starterbot_id = self.slack_client.api_call("auth.test")["user_id"]
-            else:
-                print("Connection failed.")
-        except:
-            log.log(log.CRITICAL, "Not able to connect to slack client! Shutting down...")
-            exit()
+
+        print("Trying to connect to slack RTM")
+        if self.slack_client.rtm_connect(with_team_state=False):
+            print("Bot connected and running!")
+            # Read bot's user ID by calling Web API method `auth.test`
+            self.starterbot_id = self.slack_client.api_call("auth.test")["user_id"]
+        else:
+            print("Connection failed.")
+
 
     def parse_bot_commands(self, slack_events):
         """
@@ -233,14 +230,8 @@ class FoodBot:
             print("Not posting daily menu, it's weekend ma doods!")
 
 if __name__ == "__main__":
-    # Setup argument parser
-    parser = argparse.ArgumentParser(description='Starts a slack that pulls menu information from a url')
-    parser.add_argument('--token', metavar='token', type=str, nargs='+', help='The OAuth bot token for a classic slack app')
-    args = parser.parse_args()
-    auth_token = args.token[0]
-
     # Create the bot
-    bot = FoodBot(auth_token=auth_token)
+    bot = FoodBot(auth_token=os.environ['TOKEN'])
     # Schedules
     schedule.every().day.friday.at("23:00").do(bot.update_menus)    # update of the menus every friday night
     schedule.every().day.at("11:00").do(bot.daily_menu_post)        # post every day at 11
