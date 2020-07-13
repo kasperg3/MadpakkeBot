@@ -1,5 +1,7 @@
+# coding=utf-8
 import argparse
 import logging as log
+import os
 import re
 
 # Setup slack client
@@ -57,7 +59,7 @@ class FoodBot:
             self.current_menu = self.get_menu_as_dict(CURRENT_MENU)
             self.next_menu = self.get_menu_as_dict(NEXT_MENU)
         except:
-            log.log(log.CRITICAL, "Menues are not located in root of directory! Shutting down...")
+            log.log(log.CRITICAL, "Menues are not located in root of directory: " + os.getcwd() + CURRENT_MENU + "! Shutting down...")
             exit()
 
         try:

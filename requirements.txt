@@ -5,4 +5,5 @@ requests
 BeautifulSoup4
 urllib3
 PyPDF4
+enum34
 schedule
