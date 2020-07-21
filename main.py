@@ -49,11 +49,11 @@ class FoodBot:
         # constants
         self.RTM_READ_DELAY = 1  # 1 second delay between reading from RTM
         self.HELP_COMMAND = "help"
-        self.CHANNEL = "#random"
+        self.CHANNEL = "#kantinen"
         self.UGE = "uge"
         self.FLODEKARTOFLER = "flødekartofler"
         self.MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
-        self.DEFAULT_CHANNEL = "#random"
+        self.DEFAULT_CHANNEL = "#kantinen"
 
         # Initializes the menus, both menus has to be present when running the bot!
         print("Loading local menu files...")
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     bot = FoodBot(auth_token=os.environ['TOKEN'])
     # Schedules
     schedule.every().day.friday.at("23:00").do(bot.update_menus)    # update of the menus every friday night
-    schedule.every().day.at("11:00").do(bot.daily_menu_post)        # post every day at 11
+    schedule.every().day.at("09:00").do(bot.daily_menu_post)        # post every day at 11
 
     # MAIN LOOP
     while True:
