@@ -1,3 +1,4 @@
+from __future__ import print_function
 # coding=utf-8
 import argparse
 import logging as log
@@ -27,10 +28,24 @@ import calendar
 from datetime import datetime
 import locale
 
+# gmail extraction
+import pickle
+import os.path
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+import base64
+from apiclient import errors
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+
+
 locale.setlocale(locale.LC_TIME, 'da_DK.UTF-8')
 # Constants
 NEXT_MENU = "next_menu.pdf"
 CURRENT_MENU = "current_menu.pdf"
+
 
 
 class Days(Enum):
@@ -54,6 +69,16 @@ class FoodBot:
         self.FLODEKARTOFLER = "flødekartofler"
         self.MENTION_REGEX = "^<@(|[WU].+?)>(.*)"
         self.DEFAULT_CHANNEL = "#kantinen"
+
+        # initialize gmail client
+        creds = None
+        if os.path.exists('token.pickle'):
+            with open('token.pickle', 'rb') as token:
+                creds = pickle.load(token)
+        else:
+            exit(0)
+
+        self.service = build('gmail', 'v1', credentials=creds)
 
         # Initializes the menus, both menus has to be present when running the bot!
         print("Loading local menu files...")
@@ -156,6 +181,47 @@ class FoodBot:
         return day_this_week, day_next_week
 
     @staticmethod
+    def getAttachments(service, user_id, msg_id):
+        try:
+            message = service.users().messages().get(userId=user_id, id=msg_id).execute()
+
+            for part in message['payload']['parts']:
+                if part['filename']:
+                    if 'data' in part['body']:
+                        data = part['body']['data']
+                    else:
+                        att_id = part['body']['attachmentId']
+                        att = service.users().messages().attachments().get(userId=user_id, messageId=msg_id,
+                                                                           id=att_id).execute()
+                        data = att['data']
+                    file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
+                    path = part['filename']
+
+                    with open(path, 'wb') as f:
+                        f.write(file_data)
+        except:
+            print("An error occurred")
+
+    @staticmethod
+    def listMessagesMatchingQuery(service, user_id, query=''):
+
+        try:
+            response = service.users().messages().list(userId=user_id,
+                                                       q=query).execute()
+            messages = []
+            if 'messages' in response:
+                messages.extend(response['messages'])
+
+            while 'nextPageToken' in response:
+                page_token = response['nextPageToken']
+                response = service.users().messages().list(userId=user_id, q=query, pageToken=page_token).execute()
+                messages.extend(response['messages'])
+
+            return messages
+        except:
+            print('An error occurred')
+
+    @staticmethod
     def get_pdf_menu_url():
         # ude wget to get page
         response = requests.get("https://www.kokkenogco.dk/weekly-menu")
@@ -167,7 +233,7 @@ class FoodBot:
         return page[start_char:end_char + 4]
 
     @staticmethod
-    def download_file(url, file_name):
+    def download_file_from_web(url, file_name):
         response = urllib3.PoolManager().request('GET', url, preload_content=False)
         memoryFile = BytesIO(response.data)
         pdfFile = PdfFileReader(memoryFile)
@@ -212,7 +278,7 @@ class FoodBot:
 
         # download the new menu
         url = self.get_pdf_menu_url()
-        bot.download_file(url, NEXT_MENU)
+        bot.download_file_from_web(url, NEXT_MENU)
         menu = self.get_menu_as_dict(NEXT_MENU)
 
         # Update the class variables

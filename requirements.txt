@@ -8,3 +8,6 @@ PyPDF4
 enum34
 schedule
 websocket-client
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
