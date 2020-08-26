@@ -37,6 +37,8 @@ from google.auth.transport.requests import Request
 import base64
 from apiclient import errors
 
+import GmailMenu
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 
@@ -46,6 +48,7 @@ locale.setlocale(locale.LC_TIME, 'da_DK.UTF-8')
 NEXT_MENU = "next_menu.pdf"
 CURRENT_MENU = "current_menu.pdf"
 
+USE_GMAIL = True
 
 
 class Days(Enum):
@@ -78,7 +81,10 @@ class FoodBot:
         else:
             exit(0)
 
-        self.service = build('gmail', 'v1', credentials=creds)
+
+        if USE_GMAIL:
+            self.service = build('gmail', 'v1', credentials=creds)
+            GmailMenu.save_menus()
 
         # Initializes the menus, both menus has to be present when running the bot!
         print("Loading local menu files...")
@@ -181,47 +187,6 @@ class FoodBot:
         return day_this_week, day_next_week
 
     @staticmethod
-    def getAttachments(service, user_id, msg_id):
-        try:
-            message = service.users().messages().get(userId=user_id, id=msg_id).execute()
-
-            for part in message['payload']['parts']:
-                if part['filename']:
-                    if 'data' in part['body']:
-                        data = part['body']['data']
-                    else:
-                        att_id = part['body']['attachmentId']
-                        att = service.users().messages().attachments().get(userId=user_id, messageId=msg_id,
-                                                                           id=att_id).execute()
-                        data = att['data']
-                    file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
-                    path = part['filename']
-
-                    with open(path, 'wb') as f:
-                        f.write(file_data)
-        except:
-            print("An error occurred")
-
-    @staticmethod
-    def listMessagesMatchingQuery(service, user_id, query=''):
-
-        try:
-            response = service.users().messages().list(userId=user_id,
-                                                       q=query).execute()
-            messages = []
-            if 'messages' in response:
-                messages.extend(response['messages'])
-
-            while 'nextPageToken' in response:
-                page_token = response['nextPageToken']
-                response = service.users().messages().list(userId=user_id, q=query, pageToken=page_token).execute()
-                messages.extend(response['messages'])
-
-            return messages
-        except:
-            print('An error occurred')
-
-    @staticmethod
     def get_pdf_menu_url():
         # ude wget to get page
         response = requests.get("https://www.kokkenogco.dk/weekly-menu")
@@ -277,8 +242,12 @@ class FoodBot:
         self.replace_file(NEXT_MENU, CURRENT_MENU)
 
         # download the new menu
-        url = self.get_pdf_menu_url()
-        bot.download_file_from_web(url, NEXT_MENU)
+        if USE_GMAIL:
+            GmailMenu.save_menus()
+        else:
+            url = self.get_pdf_menu_url()
+            bot.download_file_from_web(url, NEXT_MENU)
+
         menu = self.get_menu_as_dict(NEXT_MENU)
 
         # Update the class variables

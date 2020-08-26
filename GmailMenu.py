@@ -29,7 +29,7 @@ def listMessagesMatchingQuery(service, user_id, query=''):
     print('An error occurred')
 
 
-def getAttachments(service, user_id, msg_id):
+def getAttachments(service, user_id, msg_id, filename):
     try:
         message = service.users().messages().get(userId=user_id, id=msg_id).execute()
 
@@ -42,15 +42,14 @@ def getAttachments(service, user_id, msg_id):
                     att = service.users().messages().attachments().get(userId=user_id, messageId=msg_id,id=att_id).execute()
                     data = att['data']
                 file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
-                path = part['filename']
+                path = filename
 
                 with open(path, 'wb') as f:
                     f.write(file_data)
     except:
         print("An error occurred")
 
-def main():
-
+def save_menus():
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -73,15 +72,6 @@ def main():
 
     # Call the G
     # mail API to fetch INBOX
-    messages = listMessagesMatchingQuery(service=service, user_id='me', query='from:kag@a2isystems.com')
-    counter = 0
-    for message in messages:
-        # only get the two first mails
-        if counter == 2:
-            break
-        getAttachments(service=service, user_id='me', msg_id=message['id'])
-        counter = counter + 1
-
-
-if __name__ == '__main__':
-    main()
+    messages = listMessagesMatchingQuery(service=service, user_id='me', query='from:(kag@a2isystems.com) Kokken & Co has:attachment')
+    getAttachments(service=service, user_id='me', msg_id=messages[0]['id'], filename="next_menu.pdf")
+    getAttachments(service=service, user_id='me', msg_id=messages[1]['id'], filename="current_menu.pdf")
