@@ -38,6 +38,10 @@ FIRST: Try logging out and back in after installing docker. If this doesn't work
 
 `docker run hello-world`
 
+### IMPORTANT IF USING GMAL
+The gmail requires a token from the credentials. This is generated the first time you run **GmailMenu.py**.
+This means that before building the directory you have to run GmailMenu.py and generate the token from a credentials file obtained from: https://developers.google.com/gmail/api/quickstart/python
+
 #### Build the container
 
 `cd SlackBot/`
@@ -49,6 +53,5 @@ FIRST: Try logging out and back in after installing docker. If this doesn't work
 `export TOKEN=<INSER BOT AUTH TOKEN>`
 
 `docker run --env TOKEN slackbot`
-
 
 
